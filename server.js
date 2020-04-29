@@ -1,27 +1,78 @@
 var express = require("express");
-
-var PORT = process.env.PORT || 3000;
+var exphbs = require("express-handlebars");
+var mysql = require("mysql");
 
 var app = express();
 
-// Serve static content for the app from the "public" directory in the application directory.
-app.use(express.static("public"));
+// Set the port of our application
+// process.env.PORT lets the port be set by Heroku
+var PORT = process.env.PORT || 8080;
 
-// Parse request body as JSON
+// Sets up the Express app to handle data parsing
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
-// Set Handlebars.
-var exphbs = require("express-handlebars");
 
 app.engine("handlebars", exphbs({ defaultLayout: "main" }));
 app.set("view engine", "handlebars");
 
-// Import routes and give the server access to them.
-var routes = require("./controllers/catsController.js");
+var connection;
+if (process.env.JAWSDB_URL) {
+  connection = mysql.createConnection(process.env.JAWSDB_URL)
+} else {
+  connection = mysql.createConnection({
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "rootroot",
+    database: "task_saver_db"
+  });
+}
 
-app.use(routes);
+connection.connect(function(err) {
+  if (err) {
+    console.error("error connecting: " + err.stack);
+    return;
+  }
 
+  console.log("connected as id " + connection.threadId);
+});
+
+// Root get route
+app.get("/", function(req, res) {
+  connection.query("SELECT * FROM tasks;", function(err, data) {
+    if (err) throw err;
+
+    // Test it
+    // console.log('The solution is: ', data);
+
+    // Test it
+    // return res.send(data);
+
+    //data is an array
+    res.render("index", { tasks: data });
+  });
+});
+
+// Post route -> back to home
+app.post("/", function(req, res) {
+  // Test it
+  // console.log('You sent, ' + req.body.task);
+
+  // Test it
+  // return res.send('You sent, ' + req.body.task);
+
+  // When using the MySQL package, we'd use ?s in place of any values to be inserted, which are then swapped out with corresponding elements in the array
+  // This helps us avoid an exploit known as SQL injection which we'd be open to if we used string concatenation
+  // https://en.wikipedia.org/wiki/SQL_injection
+  connection.query("INSERT INTO tasks (task) VALUES (?)", [req.body.task], function(err, result) {
+    if (err) throw err;
+// redirecting it to /... redirect only look for get... it will automatically get
+    res.redirect("/");
+  });
+});
+
+// Start our server so that it can begin listening to client requests.
 app.listen(PORT, function() {
-  console.log("App now listening at localhost:" + PORT);
+  // Log (server-side) when our server has started
+  console.log("Server listening on: http://localhost:" + PORT);
 });
